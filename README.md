@@ -1,101 +1,54 @@
 # BKiAI Chat Free
 
-**Version:** 3.0.0  
-**Typ:** WordPress-Plugin (Free Edition)  
-**Website:** https://businesskiai.de/  
-**Plugin-Seite:** https://businesskiai.de/bki-ai-chat/
+WordPress-Plugin für einen KI-Chat auf der Website.
 
-BKiAI Chat Free fügt deiner WordPress-Website einen KI-Chat hinzu und bildet die öffentliche Free-Edition der Produktlinie **BKiAI Chat**.
+## Version
 
-Die Free-Version ist bewusst als Einstiegsversion aufgebaut. Sie enthält einen klaren Funktionsumfang und zeigt transparent, welche Funktionen in **Pro** und **Expert** verfügbar sind.
+Aktueller GitHub-Stand in diesem Paket: **3.1.0**
 
-## Enthalten in der Free-Version
+## Inhalt von 3.1.0
 
-- KI-Chat für WordPress
-- Voice Recording in der Free-Version
-- Anpassung der Chat-Rahmenfarbe
-- Anpassung der Rahmenstärke
-- 1 aktiver Bot in der Free-Version
-- 1 Wissensdatei für Bot 1
-- Compare-/Upgrade-Bereich im Plugin
-- Übersicht Free vs. Pro vs. Expert
-- GPT-Modellübersicht
+- Design-Einstellung für die Standardhöhe des Eingabefelds
+- Drei animierte Punkte vor der Chatantwort
+- Natürlichere Schreibgeschwindigkeit bei gestreamten Antworten
 
-## Produktlinie
+## Wichtige Hinweise für GitHub
 
-- **BKiAI Chat Free**
-- **BKiAI Chat Pro**
-- **BKiAI Chat Expert**
+- Für Endnutzer sollte **nicht** der grüne **Code → Download ZIP**-Button verwendet werden.
+- Für die Installation in WordPress sollte immer das **Release-Asset** verwendet werden, also die Datei:
+  - `bkiai-chat-free-v3.1.0.zip`
+- GitHub dient hier als:
+  - Versionsverwaltung
+  - Quellcode-Repository
+  - Release-Historie
+  - zusätzlicher Download-Kanal
 
-## Installation
+## Empfohlene Repository-Struktur
 
-### Empfohlener Weg für Nutzer
+- `bkiai-chat-free.php`
+- `readme.txt`
+- `README.md`
+- `CHANGELOG.md`
+- `RELEASE-NOTES-3.1.0.md`
+- `assets/`
+- `includes/`
+- `languages/`
+- `uninstall.php`
 
-Bitte **nicht** die automatische GitHub-Quellcode-ZIP über den grünen „Code → Download ZIP“-Button in WordPress installieren.
-
-Nutze stattdessen immer die **installierbare Plugin-ZIP aus den GitHub Releases**.
-
-### Installation in WordPress
-
-1. Lade die installierbare Plugin-ZIP aus den **Releases** herunter.
-2. Gehe in WordPress zu **Plugins → Installieren → Plugin hochladen**.
-3. Lade die ZIP hoch und aktiviere das Plugin.
-4. Öffne **Einstellungen → BKiAI Chat**.
-5. Konfiguriere die allgemeinen Einstellungen und **Bot 1**.
-6. Binde den Chat per Shortcode ein:
+## WordPress-Shortcode
 
 ```text
 [bkiai_chat bot="1"]
 ```
 
-## Repository-Struktur
+## Release-Prozess
 
-```text
-assets/
-includes/
-languages/
-bkiai-chat-free.php
-readme.txt
-uninstall.php
-README.md
-CHANGELOG.md
-LICENSE
-.gitignore
-```
+1. Dateien committen
+2. Tag `v3.1.0` anlegen
+3. GitHub Release erstellen
+4. `bkiai-chat-free-v3.1.0.zip` als Release-Asset hochladen
+5. Release Notes einfügen
 
-## Hinweise zu GitHub und Releases
+## Nächster technischer Schritt
 
-Dieses Repository enthält den **Quellcode der Free-Version**.
-
-Für echte Plugin-Installationen in WordPress solltest du die **Release-ZIP** verwenden. Die automatisch von GitHub erzeugte Source-Code-ZIP ist nicht die empfohlene Installationsdatei für Endnutzer.
-
-## Upgrade auf Pro oder Expert
-
-Die kostenpflichtigen Editionen **Pro** und **Expert** werden nicht über dieses öffentliche Repository ausgeliefert.
-
-Weitere Informationen:
-
-- https://businesskiai.de/
-- https://businesskiai.de/bki-ai-chat/
-
-## Externe Dienste und Datenschutz
-
-BKiAI Chat Free sendet Chat-Anfragen an **OpenAI**, um Antworten für den Chatbot zu erzeugen.
-
-Je nach Konfiguration können dabei übertragen werden:
-
-- Nutzeranfragen
-- Systemprompts
-- optionale Inhalte aus hochgeladenen Wissensdateien
-
-Website-Betreiber sind selbst dafür verantwortlich, Datenschutzinformationen, Rechtsgrundlagen und mögliche Vereinbarungen mit externen Diensten zu prüfen.
-
-## Support
-
-Bei Fragen:
-
-- info@businesskiai.de
-
-## Lizenz
-
-Dieses Projekt steht unter **GPL v2 oder später**. Details siehe Datei `LICENSE`.
+Als separater Arbeitsblock sollte der Update-Prozess eingerichtet werden, damit WordPress-Installationen später neue Versionen sauber erkennen und aktualisieren können.

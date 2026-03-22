@@ -3,7 +3,7 @@
  * Plugin Name: BKiAI Chat Free
  * Plugin URI: https://businesskiai.de/bki-ai-chat/
  * Description: Add an AI chat to your WordPress site with voice recording, chat border customisation, and a clear Free vs Pro feature overview.
- * Version: 3.0.0
+ * Version: 3.1.0
  * Author: BusinessKiAI
  * Author URI: https://businesskiai.de/
  * License: GPL2+
@@ -18,7 +18,7 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-define('BKIAI_CHAT_FREE_VERSION', '3.0.0');
+define('BKIAI_CHAT_FREE_VERSION', '3.1.0');
 define('BKIAI_CHAT_FREE_FILE', __FILE__);
 define('BKIAI_CHAT_FREE_DIR', plugin_dir_path(__FILE__));
 define('BKIAI_CHAT_FREE_URL', plugin_dir_url(__FILE__));
@@ -150,7 +150,13 @@ class BKiAI_Chat_Plugin {
             'clearLabel' => isset($settings['design']['clear_button_text']) && trim((string) $settings['design']['clear_button_text']) !== '' ? sanitize_text_field($settings['design']['clear_button_text']) : 'Clear chat',
             'sendOnEnter' => true,
             'streamDisplayMode' => 'word',
-            'streamWordDelay' => 32,
+            'streamWordDelay' => 48,
+            'streamWordDelayJitter' => 18,
+            'streamInitialDelay' => 280,
+            'streamSpaceDelay' => 10,
+            'streamCommaDelay' => 140,
+            'streamSentenceDelay' => 260,
+            'streamParagraphDelay' => 340,
             'voiceNotSupported' => 'Voice input is not supported in this browser.',
             'voiceOutputNotSupported' => 'Speech output is not supported in this browser.',
             'voiceConversationStartLabel' => 'Start live voice conversation',
@@ -240,6 +246,7 @@ class BKiAI_Chat_Plugin {
             'reset_text_color' => '#dc2626',
             'chat_radius' => '18',
             'input_radius' => '22',
+            'input_height' => '26px',
             'logo_url' => '',
             'chat_history_background_image_url' => '',
             'show_sources' => '1',
@@ -1156,6 +1163,14 @@ $adminBotCount = $isFreeBuild ? 5 : $botCount;
                                 <input type="number" min="0" max="80" step="1" id="bkiai_design_input_radius" name="design[input_radius]" value="<?php echo esc_attr($settings['design']['input_radius']); ?>" class="small-text" />
                                 <span style="margin-left:6px;">px</span>
                                 <p class="description">Defines how rounded the corners of the input field are.</p>
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <th scope="row"><label for="bkiai_design_input_height">Input field default height</label></th>
+                            <td>
+                                <input type="text" id="bkiai_design_input_height" name="design[input_height]" value="<?php echo esc_attr(isset($settings['design']['input_height']) ? $settings['design']['input_height'] : '26px'); ?>" class="regular-text" />
+                                <p class="description">Sets the default height of the chat input field. Users can still drag the resize handle in the frontend. Minimum: <code>26px</code>. Examples: <code>26px</code>, <code>30px</code>, <code>44px</code>, <code>80px</code>, <code>6rem</code>.</p>
                             </td>
                         </tr>
 
@@ -2527,6 +2542,7 @@ $canUsePdfGeneration = !empty($planConfig['pdf_generation']);
                 'height' => $this->sanitize_dimension(isset($postedDesign['height']) ? $postedDesign['height'] : $existing['design']['height'], $this->get_default_design()['height']),
                 'chat_radius' => $this->sanitize_radius_px(isset($postedDesign['chat_radius']) ? $postedDesign['chat_radius'] : $existing['design']['chat_radius'], $this->get_default_design()['chat_radius']),
                 'input_radius' => $this->sanitize_radius_px(isset($postedDesign['input_radius']) ? $postedDesign['input_radius'] : $existing['design']['input_radius'], $this->get_default_design()['input_radius']),
+                'input_height' => $this->sanitize_dimension(isset($postedDesign['input_height']) ? $postedDesign['input_height'] : (isset($existing['design']['input_height']) ? $existing['design']['input_height'] : $this->get_default_design()['input_height']), $this->get_default_design()['input_height']),
                 'background_color' => $this->sanitize_color(isset($postedDesign['background_color']) ? $postedDesign['background_color'] : $existing['design']['background_color'], $this->get_default_design()['background_color']),
                 'background_fill_type' => $this->sanitize_fill_type(isset($postedDesign['background_fill_type']) ? $postedDesign['background_fill_type'] : $existing['design']['background_fill_type'], $this->get_default_design()['background_fill_type']),
                 'background_fill_preset' => $this->sanitize_fill_preset(isset($postedDesign['background_fill_preset']) ? $postedDesign['background_fill_preset'] : $existing['design']['background_fill_preset'], $this->get_default_design()['background_fill_preset']),
@@ -2823,6 +2839,7 @@ private function render_chat_markup($botIndex, $bot, $design, $isPopup = false) 
     $popupPosition = isset($bot['popup_position']) ? $bot['popup_position'] : 'bottom-right';
     $messageHeight = esc_attr($design['height']);
     $wrapperWidth = esc_attr($design['width']);
+    $inputHeight = isset($design['input_height']) ? $this->sanitize_dimension($design['input_height'], $this->get_default_design()['input_height']) : $this->get_default_design()['input_height'];
 
     if ($isPopup) {
         $messageHeight = '360px';
@@ -2852,7 +2869,7 @@ private function render_chat_markup($botIndex, $bot, $design, $isPopup = false) 
     $expandFill = $this->build_fill_css($expandButtonColor, isset($design['expand_button_fill_type']) ? $design['expand_button_fill_type'] : 'solid', isset($design['expand_button_fill_preset']) ? $design['expand_button_fill_preset'] : 'soft', isset($design['expand_button_fill_angle']) ? $design['expand_button_fill_angle'] : '135');
 
     $style = sprintf(
-        '--bkiai-bg:%s; --bkiai-header:%s; --bkiai-footer:%s; --bkiai-button:%s; --bkiai-expand-bg:%s; --bkiai-expand-text:%s; --bkiai-expand-border:%s; --bkiai-reset-text:%s; --bkiai-title-text:%s; --bkiai-border-width:%s; --bkiai-border-color:%s; --bkiai-bg-fill:%s; --bkiai-header-fill:%s; --bkiai-footer-fill:%s; --bkiai-button-fill:%s; --bkiai-expand-fill:%s; --bkiai-messages-height:%s; --bkiai-shadow:%s; --bkiai-chat-radius:%s; --bkiai-input-radius:%s; width:%s;',
+        '--bkiai-bg:%s; --bkiai-header:%s; --bkiai-footer:%s; --bkiai-button:%s; --bkiai-expand-bg:%s; --bkiai-expand-text:%s; --bkiai-expand-border:%s; --bkiai-reset-text:%s; --bkiai-title-text:%s; --bkiai-border-width:%s; --bkiai-border-color:%s; --bkiai-bg-fill:%s; --bkiai-header-fill:%s; --bkiai-footer-fill:%s; --bkiai-button-fill:%s; --bkiai-expand-fill:%s; --bkiai-messages-height:%s; --bkiai-shadow:%s; --bkiai-chat-radius:%s; --bkiai-input-radius:%s; --bkiai-input-min-height:%s; width:%s;',
         esc_attr($design['background_color']),
         esc_attr($design['header_color']),
         esc_attr($design['footer_color']),
@@ -2873,6 +2890,7 @@ private function render_chat_markup($botIndex, $bot, $design, $isPopup = false) 
         $design['box_shadow_enabled'] === '1' ? '0 8px 30px rgba(15, 23, 42, 0.06)' : 'none',
         intval(isset($design['chat_radius']) ? $design['chat_radius'] : 18) . 'px',
         intval(isset($design['input_radius']) ? $design['input_radius'] : 22) . 'px',
+        $inputHeight,
         $wrapperWidth
     );
 
@@ -2905,7 +2923,7 @@ private function render_chat_markup($botIndex, $bot, $design, $isPopup = false) 
                     </div>
                     <form class="bkiai-chat-form" method="post">
                         <div class="bkiai-chat-input-shell">
-                            <textarea class="bkiai-chat-input" rows="2" placeholder="<?php echo esc_attr($inputPlaceholderText); ?>"></textarea>
+                            <textarea class="bkiai-chat-input" rows="1" placeholder="<?php echo esc_attr($inputPlaceholderText); ?>"></textarea>
                             <div class="bkiai-chat-controls">
                                 <?php if ($design['voice_enabled'] === '1') : ?>
                                     <button type="button" class="bkiai-chat-voice" aria-label="Start voice input" title="Voice input">🎤</button>
@@ -2938,7 +2956,7 @@ private function render_chat_markup($botIndex, $bot, $design, $isPopup = false) 
             </div>
             <form class="bkiai-chat-form" method="post">
                 <div class="bkiai-chat-input-shell">
-                    <textarea class="bkiai-chat-input" rows="2" placeholder="<?php echo esc_attr($inputPlaceholderText); ?>"></textarea>
+                    <textarea class="bkiai-chat-input" rows="1" placeholder="<?php echo esc_attr($inputPlaceholderText); ?>"></textarea>
                     <div class="bkiai-chat-controls">
                         <?php if ($design['voice_enabled'] === '1') : ?>
                             <button type="button" class="bkiai-chat-voice" aria-label="Start voice input" title="Voice input">🎤</button>

@@ -1,11 +1,17 @@
 # Changelog
 
+## 3.1.0
+
+- Added a backend design setting for the default chat input-field height.
+- Added animated three-dot loading feedback before streamed answers appear.
+- Refined the streamed response speed to feel more natural and human-like.
+
 ## 3.0.0
 
-- Erste öffentliche WordPress.org-Einreichung vorbereitet.
-- Free-Version für die öffentliche Veröffentlichung bereinigt.
-- Voice Recording in der Free-Version enthalten.
-- Chat-Rahmen-Anpassung mit Rahmenstärke und Rahmenfarbe.
-- Compare-/Upgrade-Bereich verfeinert.
-- GPT-Modellübersicht ergänzt.
-- Transparente Übersicht über Free, Pro und Expert.
+- Initial public WordPress.org release.
+- Free version prepared for repository submission.
+- Voice recording available in the Free version.
+- Chat border customisation includes border thickness and border colour.
+- Compare and upgrade presentation refined.
+- GPT model comparison included.
+- Transparent Free vs Pro vs Expert product overview.

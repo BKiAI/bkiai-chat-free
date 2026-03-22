@@ -4,7 +4,7 @@ Tags: ai chat, chatbot, website chat, voice chat, ai assistant
 Requires at least: 6.4
 Tested up to: 6.9
 Requires PHP: 7.4
-Stable tag: 3.0.0
+Stable tag: 3.1.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -117,6 +117,11 @@ Yes. It is designed as a clear entry version that lets users work with the Free 
 
 == Changelog ==
 
+= 3.1.0 =
+* Added a backend design setting for the default chat input-field height.
+* Added animated three-dot loading feedback before streamed answers appear.
+* Refined the streamed response speed to feel more natural and human-like.
+
 = 3.0.0 =
 * Initial public WordPress.org release.
 * Free version prepared for repository submission.
@@ -127,6 +132,9 @@ Yes. It is designed as a clear entry version that lets users work with the Free 
 * Transparent Free vs Pro vs Expert product overview.
 
 == Upgrade Notice ==
+
+= 3.1.0 =
+Adds input-height design control, animated loading dots, and a more natural streamed typing experience.
 
 = 3.0.0 =
 Initial public WordPress.org release of BKiAI Chat Free.

@@ -186,6 +186,31 @@ document.addEventListener('DOMContentLoaded', function () {
       }, 140);
     };
 
+    let manualInputHeight = 0;
+
+    const getBaseInputHeight = function () {
+      const computedMinHeight = parseFloat(window.getComputedStyle(input).minHeight || '26') || 26;
+      return Math.max(26, computedMinHeight, manualInputHeight || 0);
+    };
+
+    const resizeInput = function () {
+      const baseHeight = getBaseInputHeight();
+      input.style.height = 'auto';
+      const currentValue = (input.value || '').trim();
+      const naturalHeight = currentValue === '' ? baseHeight : Math.min(input.scrollHeight, 220);
+      const nextHeight = Math.max(baseHeight, naturalHeight);
+      input.style.height = nextHeight + 'px';
+    };
+
+    const captureManualInputHeight = function () {
+      window.requestAnimationFrame(function () {
+        const renderedHeight = input.offsetHeight || 0;
+        if (renderedHeight > 0) {
+          manualInputHeight = renderedHeight;
+        }
+      });
+    };
+
     let voiceConversationActive = false;
     let voiceRecognition = null;
     let voiceRecognitionRestartTimer = null;
@@ -965,10 +990,11 @@ const createStreamingMessage = function () {
   textNode.textContent = '';
   message.appendChild(textNode);
 
-  const cursor = document.createElement('span');
-  cursor.className = 'bkiai-chat-streaming-cursor';
-  cursor.textContent = '▍';
-  message.appendChild(cursor);
+  const loadingDots = document.createElement('span');
+  loadingDots.className = 'bkiai-chat-loading-dots bkiai-chat-streaming-dots';
+  loadingDots.setAttribute('aria-label', bkiaiChatConfig.loadingAriaLabel || 'Response is loading');
+  loadingDots.innerHTML = '<span></span><span></span><span></span>';
+  message.appendChild(loadingDots);
 
   messages.appendChild(message);
   smoothScrollToBottom();
@@ -976,11 +1002,13 @@ const createStreamingMessage = function () {
   return {
     root: message,
     textNode: textNode,
-    cursor: cursor,
+    loadingDots: loadingDots,
     text: '',
     displayQueue: [],
     pendingBuffer: '',
-    displayTimer: null,
+    displayTimeout: null,
+    hasStartedTyping: false,
+    visibleTokenCount: 0,
     finalizing: false
   };
 };
@@ -1006,29 +1034,89 @@ const tokenizeStreamingBuffer = function (buffer, flushAll) {
   return { tokens: tokens, rest: rest };
 };
 
+const hideStreamingLoader = function (streamState) {
+  if (!streamState || !streamState.loadingDots) {
+    return;
+  }
+  streamState.loadingDots.remove();
+  streamState.loadingDots = null;
+};
+
+const getRandomTypingJitter = function (range) {
+  const safeRange = Math.max(0, Number(range || 0));
+  if (!safeRange) {
+    return 0;
+  }
+  return Math.round((Math.random() * safeRange) - (safeRange / 2));
+};
+
+const getStreamingTokenDelay = function (streamState, token) {
+  const trimmedToken = String(token || '').trim();
+  const baseDelay = Math.max(16, Number(bkiaiChatConfig.streamWordDelay || 48));
+  const jitter = Number(bkiaiChatConfig.streamWordDelayJitter || 18);
+  const initialDelay = Math.max(0, Number(bkiaiChatConfig.streamInitialDelay || 280));
+  const spaceDelay = Math.max(0, Number(bkiaiChatConfig.streamSpaceDelay || 10));
+  const commaDelay = Math.max(0, Number(bkiaiChatConfig.streamCommaDelay || 140));
+  const sentenceDelay = Math.max(0, Number(bkiaiChatConfig.streamSentenceDelay || 260));
+  const paragraphDelay = Math.max(0, Number(bkiaiChatConfig.streamParagraphDelay || 340));
+
+  if (!streamState.hasStartedTyping) {
+    return initialDelay + Math.max(0, getRandomTypingJitter(90));
+  }
+
+  if (!trimmedToken) {
+    return Math.max(0, spaceDelay + getRandomTypingJitter(10));
+  }
+
+  let delay = baseDelay + getRandomTypingJitter(jitter);
+
+  if (streamState.visibleTokenCount < 4) {
+    delay += 26;
+  } else if (streamState.visibleTokenCount > 60) {
+    delay -= 10;
+  } else if (streamState.visibleTokenCount > 28) {
+    delay -= 5;
+  }
+
+  if (trimmedToken.length >= 10) {
+    delay += 12;
+  } else if (trimmedToken.length <= 3) {
+    delay -= 4;
+  }
+
+  if (/\n\s*\n\s*$/.test(token)) {
+    delay += paragraphDelay;
+  } else if (/[.!?…]\s*$/.test(token)) {
+    delay += sentenceDelay;
+  } else if (/[,;:]\s*$/.test(token)) {
+    delay += commaDelay;
+  } else if (/\n\s*$/.test(token)) {
+    delay += Math.round(commaDelay * 0.6);
+  }
+
+  return Math.max(12, Math.min(delay, 420));
+};
+
 const processStreamingQueue = function (streamState) {
-  if (!streamState || streamState.displayTimer) {
+  if (!streamState || streamState.displayTimeout || !streamState.displayQueue.length) {
     return;
   }
 
-  const delay = Math.max(12, Number(bkiaiChatConfig.streamWordDelay || 32));
-  streamState.displayTimer = window.setInterval(function () {
-    if (!streamState.displayQueue.length) {
-      window.clearInterval(streamState.displayTimer);
-      streamState.displayTimer = null;
-      return;
-    }
+  const nextToken = streamState.displayQueue.shift();
+  const nextDelay = getStreamingTokenDelay(streamState, nextToken);
 
-    const nextToken = streamState.displayQueue.shift();
+  streamState.displayTimeout = window.setTimeout(function () {
+    streamState.displayTimeout = null;
+    hideStreamingLoader(streamState);
     streamState.text += nextToken;
     streamState.textNode.textContent = streamState.text;
-    smoothScrollToBottom();
-
-    if (!streamState.displayQueue.length) {
-      window.clearInterval(streamState.displayTimer);
-      streamState.displayTimer = null;
+    streamState.hasStartedTyping = true;
+    if (String(nextToken || '').trim()) {
+      streamState.visibleTokenCount += 1;
     }
-  }, delay);
+    smoothScrollToBottom();
+    processStreamingQueue(streamState);
+  }, nextDelay);
 };
 
 const appendStreamingDelta = function (streamState, delta) {
@@ -1037,6 +1125,7 @@ const appendStreamingDelta = function (streamState, delta) {
   }
 
   if ((bkiaiChatConfig.streamDisplayMode || 'word') !== 'word') {
+    hideStreamingLoader(streamState);
     streamState.text += delta;
     streamState.textNode.textContent = streamState.text;
     smoothScrollToBottom();
@@ -1074,7 +1163,7 @@ const flushStreamingDisplay = function (streamState) {
     }
 
     const waitUntilDone = function () {
-      if (!streamState.displayQueue.length && !streamState.displayTimer) {
+      if (!streamState.displayQueue.length && !streamState.displayTimeout) {
         resolve();
         return;
       }
@@ -1091,9 +1180,7 @@ const finalizeStreamingMessage = function (streamState, options) {
   }
   const opts = options || {};
   streamState.root.classList.remove('bkiai-chat-message-streaming');
-  if (streamState.cursor && streamState.cursor.parentNode) {
-    streamState.cursor.parentNode.removeChild(streamState.cursor);
-  }
+  hideStreamingLoader(streamState);
 
   const finalText = typeof opts.reply === 'string' && opts.reply !== '' ? opts.reply : streamState.text;
   streamState.text = finalText;
@@ -1209,6 +1296,7 @@ const consumeNdjsonStream = async function (response, onEvent) {
         addMessage(welcomeMessage, 'bot');
       }
       input.value = '';
+      resizeInput();
       input.focus();
     };
 
@@ -1262,6 +1350,15 @@ const consumeNdjsonStream = async function (response, onEvent) {
         resetChat();
       });
     }
+
+    input.addEventListener('input', function () {
+      resizeInput();
+    });
+
+    input.addEventListener('mouseup', captureManualInputHeight);
+    input.addEventListener('touchend', captureManualInputHeight);
+
+    resizeInput();
 
     input.addEventListener('keydown', function (event) {
       if (event.key === 'Enter' && !event.shiftKey && !event.isComposing) {
@@ -1352,6 +1449,7 @@ form.addEventListener('submit', async function (event) {
   addMessage(userMessage, 'user', { disableCopy: true });
   pushHistory('user', userMessage);
   input.value = '';
+  resizeInput();
   input.disabled = true;
   if (button) {
     button.disabled = true;
