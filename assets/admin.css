@@ -1,0 +1,70 @@
+.bkiai-admin-notice { border-left-width: 6px; border-radius: 8px; padding: 10px 14px; margin: 14px 0 18px; }
+                .bkiai-admin-notice p { margin: 0.2em 0; font-weight: 600; }
+                .bkiai-admin-notice-success { background: #ecfdf3; border-left-color: #16a34a; color: #166534; }
+                .bkiai-admin-notice-error { background: #fef2f2; border-left-color: #dc2626; color: #991b1b; }
+                .bkiai-admin-notice-warning { background: #fff7ed; border-left-color: #ea580c; color: #9a3412; }
+                .bkiai-admin-notice-info { background: #eff6ff; border-left-color: #2563eb; color: #1d4ed8; }
+                .bkiai-color-field-group { display:flex; align-items:center; gap:12px; flex-wrap:wrap; }
+                .bkiai-color-palette { width:52px; height:38px; padding:2px; border:1px solid #d0d5dd; border-radius:8px; background:#fff; cursor:pointer; }
+                .bkiai-color-help { margin-top:6px; color:#646970; }
+                .bkiai-fill-options { display:flex; align-items:flex-end; gap:12px; flex-wrap:wrap; margin-top:10px; }
+                .bkiai-fill-options label { display:flex; flex-direction:column; gap:4px; font-weight:600; }
+                .bkiai-fill-options select { min-width:140px; }
+                .bkiai-fill-preview { width:72px; height:38px; border-radius:10px; border:1px solid #d0d5dd; display:inline-block; box-shadow: inset 0 0 0 1px rgba(255,255,255,0.25); }
+                .bkiai-logo-field-group { display:flex; align-items:center; gap:12px; flex-wrap:wrap; }
+                .bkiai-logo-preview { max-height:42px; width:auto; display:block; border:1px solid #d0d5dd; border-radius:8px; background:#fff; padding:4px; }
+                .bkiai-logo-preview.is-hidden { display:none; }
+                .bkiai-design-preset-row { display:flex; align-items:center; gap:12px; flex-wrap:wrap; }
+                .bkiai-design-preset-row select { min-width:240px; }
+
+                .bkiai-systemprompt-meta { margin-top:8px; display:flex; align-items:center; gap:12px; flex-wrap:wrap; }
+                .bkiai-systemprompt-hint { margin:0; color:#50575e; }
+                .bkiai-systemprompt-count { display:inline-flex; align-items:center; gap:6px; padding:4px 10px; border-radius:999px; background:#eef2ff; border:1px solid #c7d2fe; color:#3730a3; font-weight:600; }
+                .bkiai-systemprompt-count.is-warning { background:#fff7ed; border-color:#fdba74; color:#9a3412; }
+                .bkiai-systemprompt-count.is-danger { background:#fef2f2; border-color:#fca5a5; color:#b91c1c; }
+                .bkiai-knowledge-help { margin-top:10px; max-width:980px; }
+                .bkiai-knowledge-help summary { cursor:pointer; font-weight:600; color:#1d4ed8; }
+                .bkiai-knowledge-help summary:hover { color:#1e40af; }
+                .bkiai-knowledge-help-box { margin-top:10px; padding:14px; border:1px solid #dcdcde; border-radius:12px; background:#fff; }
+                .bkiai-knowledge-help-box table { width:100%; border-collapse:collapse; margin:0 0 14px; }
+                .bkiai-knowledge-help-box th, .bkiai-knowledge-help-box td { border:1px solid #e5e7eb; padding:8px 10px; text-align:left; vertical-align:top; }
+                .bkiai-knowledge-help-box thead th { background:#f8fafc; font-weight:700; }
+                .bkiai-knowledge-help-box h4 { margin:14px 0 8px; }
+                .bkiai-knowledge-help-box p { margin:8px 0; }
+                .bkiai-knowledge-help-box ul { margin:8px 0 8px 18px; }
+
+                .bkiai-admin-tabs { display:flex; gap:8px; flex-wrap:wrap; margin:18px 0 22px; }
+                .bkiai-admin-tab-button,
+                .bkiai-admin-tab-link { border:1px solid #d0d5dd; background:#fff; color:#1f2937; border-radius:10px; padding:10px 14px; cursor:pointer; font-weight:600; }
+                .bkiai-admin-tab-button.is-active { background:#2563eb; color:#fff; border-color:#2563eb; }
+
+
+.bkiai-admin-tab-panel { display:none; }
+.bkiai-admin-tab-panel.is-active { display:block; }
+
+
+.bkiai-admin-wrap { max-width: 1320px; }
+.bkiai-admin-header { display:flex; align-items:flex-start; justify-content:space-between; gap:16px; flex-wrap:wrap; margin: 4px 0 8px; }
+.bkiai-admin-header-copy h1 { margin-bottom: 8px; }
+.bkiai-admin-header-copy p { margin-top: 0; }
+.bkiai-admin-header-actions { display:flex; align-items:center; gap:10px; }
+.bkiai-upgrade-cta { min-height: 38px; display:inline-flex; align-items:center; justify-content:center; padding: 0 16px; font-weight: 600; }
+.bkiai-admin-upgrade-box { display:flex; align-items:center; justify-content:space-between; gap:18px; flex-wrap:wrap; max-width: 1100px; margin: 0 0 24px; padding: 16px 18px; border:1px solid #bfdbfe; border-radius: 14px; background: linear-gradient(135deg, #eff6ff 0%, #f8fafc 100%); }
+.bkiai-admin-upgrade-box__copy h2 { margin: 0 0 6px; font-size: 18px; }
+.bkiai-admin-upgrade-box__copy p { margin: 0; color: #334155; }
+.bkiai-admin-upgrade-box__actions { display:flex; align-items:center; }
+.bkiai-admin-upgrade-box__button { min-height: 38px; display:inline-flex; align-items:center; justify-content:center; padding: 0 14px; }
+@media (max-width: 782px) {
+  .bkiai-admin-header-actions, .bkiai-admin-upgrade-box__actions { width: 100%; }
+  .bkiai-upgrade-cta, .bkiai-admin-upgrade-box__button { width: 100%; justify-content: center; }
+}
+
+
+.bkiai-inline-help-wrap { display:flex; align-items:flex-start; gap:10px; flex-wrap:wrap; }
+.bkiai-inline-help { position:relative; margin:0; }
+.bkiai-inline-help summary { list-style:none; width:24px; height:24px; border-radius:999px; border:1px solid #cbd5e1; background:#fff; color:#1d4ed8; display:flex; align-items:center; justify-content:center; font-weight:700; cursor:pointer; user-select:none; }
+.bkiai-inline-help summary::-webkit-details-marker { display:none; }
+.bkiai-inline-help[open] summary { border-color:#2563eb; box-shadow:0 0 0 2px rgba(37,99,235,0.12); }
+.bkiai-inline-help__box { position:absolute; top:32px; left:0; z-index:30; width:min(460px, calc(100vw - 80px)); padding:14px 16px; border:1px solid #d0d5dd; border-radius:12px; background:#fff; box-shadow:0 12px 32px rgba(15,23,42,0.14); }
+.bkiai-inline-help__box strong { display:block; margin:0 0 8px; }
+.bkiai-inline-help__box p { margin:8px 0; }

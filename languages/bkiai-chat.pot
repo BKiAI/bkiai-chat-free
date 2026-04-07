@@ -1,0 +1,43 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: BKiAI Chat 3.1.10\n"
+"Report-Msgid-Bugs-To: https://businesskiai.de/\n"
+"POT-Creation-Date: 2026-03-17 00:00+0000\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: LANGUAGE <LL@li.org>\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"X-Domain: bkiai-chat\n"
+"X-Generator: OpenAI\n"
+
+#: bkiai-chat.php:79
+msgid "BKiAI Chat sends chat content, prompts, and optional uploaded knowledge-file content to OpenAI in order to generate chatbot responses."
+msgstr ""
+
+#: bkiai-chat.php:80
+msgid "The free edition does not provide local chat-log storage in the WordPress backend. Site owners should still review their privacy policy and any agreements required for their OpenAI account."
+msgstr ""
+
+#: bkiai-chat.php:83
+msgid "BKiAI Chat"
+msgstr ""
+
+#: bkiai-chat.php:876
+msgid "Chat log export is not available in the free edition."
+msgstr ""
+
+#: bkiai-chat.php:880
+msgid "Chat logs are not available in the free edition."
+msgstr ""
+
+#. translators: %s: plan label such as Pro or Expert.
+#: bkiai-chat.php:1067
+#, php-format
+msgid "Available in %s"
+msgstr ""
+
+#: bkiai-chat.php:2429
+msgid "Permission denied."
+msgstr ""

@@ -156,8 +156,10 @@ document.addEventListener('DOMContentLoaded', function () {
     const botId = wrapper.getAttribute('data-bot-id') || '1';
     const welcomeMessage = wrapper.getAttribute('data-welcome-message') || '';
     const voiceEnabled = wrapper.getAttribute('data-voice-enabled') === '1';
-    const voiceRealtimeEnabled = wrapper.getAttribute('data-voice-realtime') === '1';
+    const voiceRealtimeEnabled = false;
     const voiceReplyGender = wrapper.getAttribute('data-voice-gender') || 'female';
+    const showSources = wrapper.getAttribute('data-show-sources') !== '0' && bkiaiChatConfig.showSources !== false;
+    let voiceReadyAudioContext = null;
     const history = [];
     const fullscreenBackdrop = document.createElement('div');
     fullscreenBackdrop.className = 'bkiai-chat-fullscreen-backdrop';
@@ -217,14 +219,6 @@ document.addEventListener('DOMContentLoaded', function () {
     let voiceBotBusy = false;
     let voiceSpeaking = false;
 
-    let realtimePeerConnection = null;
-    let realtimeDataChannel = null;
-    let realtimeLocalStream = null;
-    let realtimeAudioElement = null;
-    let realtimeConnecting = false;
-    let realtimeAssistantStreamState = null;
-    const realtimeRenderedUserItems = new Set();
-
     const clearVoiceRecognitionRestart = function () {
       if (voiceRecognitionRestartTimer) {
         window.clearTimeout(voiceRecognitionRestartTimer);
@@ -234,6 +228,38 @@ document.addEventListener('DOMContentLoaded', function () {
 
     const getUiLanguage = function () {
       return (document.documentElement.getAttribute('lang') || navigator.language || 'en-US');
+    };
+
+    const playVoiceReadyTone = function () {
+      const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+      if (!AudioContextClass) {
+        return;
+      }
+
+      try {
+        if (!voiceReadyAudioContext) {
+          voiceReadyAudioContext = new AudioContextClass();
+        }
+
+        const audioContext = voiceReadyAudioContext;
+        if (audioContext.state === 'suspended' && typeof audioContext.resume === 'function') {
+          audioContext.resume().catch(function () {});
+        }
+
+        const oscillator = audioContext.createOscillator();
+        const gainNode = audioContext.createGain();
+        const startTime = audioContext.currentTime;
+        oscillator.type = 'sine';
+        oscillator.frequency.setValueAtTime(880, startTime);
+        oscillator.frequency.exponentialRampToValueAtTime(1175, startTime + 0.12);
+        gainNode.gain.setValueAtTime(0.0001, startTime);
+        gainNode.gain.exponentialRampToValueAtTime(0.045, startTime + 0.02);
+        gainNode.gain.exponentialRampToValueAtTime(0.0001, startTime + 0.17);
+        oscillator.connect(gainNode);
+        gainNode.connect(audioContext.destination);
+        oscillator.start(startTime);
+        oscillator.stop(startTime + 0.18);
+      } catch (_voiceToneError) {}
     };
 
     const toPlainSpeechText = function (text) {
@@ -340,7 +366,7 @@ document.addEventListener('DOMContentLoaded', function () {
     };
 
     const speakBotReply = function (text) {
-      if (!voiceEnabled || !voiceConversationActive || voiceRealtimeEnabled) {
+      if (!voiceEnabled || !voiceConversationActive) {
         return Promise.resolve();
       }
       if (!window.speechSynthesis || typeof window.SpeechSynthesisUtterance === 'undefined') {
@@ -371,12 +397,12 @@ document.addEventListener('DOMContentLoaded', function () {
         utterance.pitch = voiceReplyGender === 'male' ? 0.78 : 1.08;
         utterance.onend = function () {
           voiceSpeaking = false;
-          updateVoiceButtonTitle(bkiaiChatConfig.voiceConversationStartLabel || 'Start live voice conversation');
+          updateVoiceButtonTitle('Start voice input');
           resolve();
         };
         utterance.onerror = function () {
           voiceSpeaking = false;
-          updateVoiceButtonTitle(bkiaiChatConfig.voiceConversationStartLabel || 'Start live voice conversation');
+          updateVoiceButtonTitle('Start voice input');
           resolve();
         };
 
@@ -388,22 +414,9 @@ document.addEventListener('DOMContentLoaded', function () {
 
     const restartVoiceRecognitionIfNeeded = function () {
       clearVoiceRecognitionRestart();
-      if (!voiceEnabled || !voiceRealtimeEnabled || !voiceConversationActive || voiceBotBusy || voiceSpeaking || !voiceRecognition) {
-        return;
-      }
-      voiceRecognitionRestartTimer = window.setTimeout(function () {
-        try {
-          voiceRecognition.start();
-          updateVoiceButtonTitle(bkiaiChatConfig.voiceListeningLabel || 'Listening…');
-        } catch (_restartError) {}
-      }, 260);
     };
 
     const stopVoiceConversation = function () {
-      if (voiceRealtimeEnabled) {
-        stopRealtimeVoiceConversation();
-        return;
-      }
       voiceConversationActive = false;
       clearVoiceRecognitionRestart();
       if (voiceRecognition) {
@@ -420,15 +433,11 @@ document.addEventListener('DOMContentLoaded', function () {
       if (voiceButton) {
         voiceButton.classList.remove('is-listening');
         voiceButton.classList.remove('is-voice-session');
-        updateVoiceButtonTitle(bkiaiChatConfig.voiceConversationStartLabel || 'Start live voice conversation');
+        updateVoiceButtonTitle('Start voice input');
       }
     };
 
     const startVoiceConversation = function () {
-      if (voiceRealtimeEnabled) {
-        startRealtimeVoiceConversation();
-        return;
-      }
       if (!voiceRecognition) {
         return;
       }
@@ -455,253 +464,6 @@ document.addEventListener('DOMContentLoaded', function () {
         form.dispatchEvent(new Event('submit', { cancelable: true }));
       }
     };
-
-    
-const ensureRealtimeAudioElement = function () {
-  if (realtimeAudioElement) {
-    return realtimeAudioElement;
-  }
-  realtimeAudioElement = document.createElement('audio');
-  realtimeAudioElement.autoplay = true;
-  realtimeAudioElement.playsInline = true;
-  realtimeAudioElement.className = 'bkiai-chat-realtime-audio';
-  realtimeAudioElement.style.display = 'none';
-  wrapper.appendChild(realtimeAudioElement);
-  return realtimeAudioElement;
-};
-
-const supportsRealtimeVoice = function () {
-  return !!(window.RTCPeerConnection && navigator.mediaDevices && typeof navigator.mediaDevices.getUserMedia === 'function');
-};
-
-const resetRealtimeAssistantStream = function () {
-  if (realtimeAssistantStreamState && realtimeAssistantStreamState.root && realtimeAssistantStreamState.root.parentNode) {
-    // keep the partial transcript visible if already present; only clear current pointer
-  }
-  realtimeAssistantStreamState = null;
-};
-
-const stopRealtimeVoiceConversation = function () {
-  realtimeConnecting = false;
-  voiceConversationActive = false;
-  voiceBotBusy = false;
-
-  if (realtimeDataChannel) {
-    try { realtimeDataChannel.close(); } catch (_dataChannelCloseError) {}
-    realtimeDataChannel = null;
-  }
-
-  if (realtimePeerConnection) {
-    try { realtimePeerConnection.getSenders().forEach(function (sender) { if (sender.track) { try { sender.track.stop(); } catch (_senderTrackStopError) {} } }); } catch (_senderStopError) {}
-    try { realtimePeerConnection.close(); } catch (_peerCloseError) {}
-    realtimePeerConnection = null;
-  }
-
-  if (realtimeLocalStream) {
-    try { realtimeLocalStream.getTracks().forEach(function (track) { track.stop(); }); } catch (_localTrackStopError) {}
-    realtimeLocalStream = null;
-  }
-
-  if (realtimeAudioElement) {
-    try { realtimeAudioElement.pause(); } catch (_audioPauseError) {}
-    realtimeAudioElement.srcObject = null;
-  }
-
-  realtimeRenderedUserItems.clear();
-  resetRealtimeAssistantStream();
-
-  if (voiceButton) {
-    voiceButton.classList.remove('is-listening');
-    voiceButton.classList.remove('is-voice-session');
-    voiceButton.disabled = false;
-    updateVoiceButtonTitle(bkiaiChatConfig.realtimeVoiceStartLabel || bkiaiChatConfig.voiceConversationStartLabel || 'Start live voice conversation');
-  }
-};
-
-const handleRealtimeServerEvent = function (eventPayload) {
-  if (!eventPayload || !eventPayload.type) {
-    return;
-  }
-
-  if (eventPayload.type === 'input_audio_buffer.speech_started') {
-    if (voiceButton) {
-      voiceButton.classList.add('is-listening');
-      updateVoiceButtonTitle(bkiaiChatConfig.voiceListeningLabel || 'Listening…');
-    }
-    return;
-  }
-
-  if (eventPayload.type === 'input_audio_buffer.speech_stopped') {
-    if (voiceButton) {
-      voiceButton.classList.remove('is-listening');
-      updateVoiceButtonTitle(bkiaiChatConfig.voiceProcessingLabel || 'Processing…');
-    }
-    return;
-  }
-
-  if (eventPayload.type === 'conversation.item.input_audio_transcription.completed') {
-    const transcript = (eventPayload.transcript || '').trim();
-    const itemId = eventPayload.item_id || '';
-    if (transcript && !realtimeRenderedUserItems.has(itemId)) {
-      addMessage(transcript, 'user', { disableCopy: true });
-      if (itemId) {
-        realtimeRenderedUserItems.add(itemId);
-      }
-    }
-    return;
-  }
-
-  if (eventPayload.type === 'response.output_audio_transcript.delta') {
-    const delta = eventPayload.delta || '';
-    if (!delta) {
-      return;
-    }
-    if (!realtimeAssistantStreamState) {
-      realtimeAssistantStreamState = createStreamingMessage();
-    }
-    appendStreamingDelta(realtimeAssistantStreamState, delta);
-    return;
-  }
-
-  if (eventPayload.type === 'response.done') {
-    if (realtimeAssistantStreamState) {
-      flushStreamingDisplay(realtimeAssistantStreamState).then(function () {
-        if (realtimeAssistantStreamState) {
-          finalizeStreamingMessage(realtimeAssistantStreamState, {
-            reply: realtimeAssistantStreamState.text,
-            sources: ['Realtime voice']
-          });
-          realtimeAssistantStreamState = null;
-        }
-      });
-    }
-    if (voiceButton && voiceConversationActive) {
-      updateVoiceButtonTitle(bkiaiChatConfig.realtimeVoiceActiveLabel || 'Live voice conversation is active.');
-    }
-    return;
-  }
-
-  if (eventPayload.type === 'error') {
-    let message = bkiaiChatConfig.realtimeVoiceErrorLabel || 'The live voice session could not be started right now. Please try again.';
-    if (eventPayload.error && eventPayload.error.message) {
-      message = eventPayload.error.message;
-    }
-    addMessage(message, 'bot');
-    stopRealtimeVoiceConversation();
-  }
-};
-
-const startRealtimeVoiceConversation = async function () {
-  if (realtimeConnecting || realtimePeerConnection) {
-    return;
-  }
-
-  if (!supportsRealtimeVoice()) {
-    if (voiceButton) {
-      voiceButton.disabled = true;
-      updateVoiceButtonTitle(bkiaiChatConfig.realtimeVoiceNotSupported || 'Realtime voice is not supported in this browser.');
-    }
-    addMessage(bkiaiChatConfig.realtimeVoiceNotSupported || 'Realtime voice is not supported in this browser.', 'bot');
-    return;
-  }
-
-  realtimeConnecting = true;
-  voiceConversationActive = true;
-
-  if (voiceButton) {
-    voiceButton.disabled = true;
-    voiceButton.classList.add('is-voice-session');
-    updateVoiceButtonTitle((bkiaiChatConfig.realtimeVoiceConnectingLabel || 'Connecting voice…') + ' ' + (bkiaiChatConfig.realtimeVoiceGermanHint || ''));
-  }
-
-  try {
-    const pc = new RTCPeerConnection();
-    const audioEl = ensureRealtimeAudioElement();
-    pc.ontrack = function (event) {
-      audioEl.srcObject = event.streams[0];
-      const playPromise = audioEl.play();
-      if (playPromise && typeof playPromise.catch === 'function') {
-        playPromise.catch(function () {});
-      }
-    };
-
-    const dc = pc.createDataChannel('oai-events');
-    dc.addEventListener('message', function (event) {
-      try {
-        const payload = JSON.parse(event.data);
-        handleRealtimeServerEvent(payload);
-      } catch (_parseError) {}
-    });
-
-    realtimeLocalStream = await navigator.mediaDevices.getUserMedia({
-      audio: {
-        echoCancellation: true,
-        noiseSuppression: true,
-        autoGainControl: true,
-      }
-    });
-
-    realtimeLocalStream.getTracks().forEach(function (track) {
-      pc.addTrack(track, realtimeLocalStream);
-    });
-
-    const offer = await pc.createOffer();
-    await pc.setLocalDescription(offer);
-
-    const formData = new FormData();
-    formData.append('action', bkiaiChatConfig.realtimeAction || 'bkiai_chat_realtime_offer');
-    formData.append('nonce', bkiaiChatConfig.nonce);
-    formData.append('bot_id', botId);
-    formData.append('sdp', offer.sdp || '');
-
-    const response = await fetch(bkiaiChatConfig.ajaxUrl, {
-      method: 'POST',
-      body: formData,
-      credentials: 'same-origin'
-    });
-
-    if (!response.ok) {
-      let errorMessage = bkiaiChatConfig.realtimeVoiceErrorLabel || 'The live voice session could not be started right now. Please try again.';
-      const contentType = response.headers.get('content-type') || '';
-      if (contentType.indexOf('application/json') !== -1) {
-        try {
-          const payload = await response.json();
-          if (payload && payload.data && payload.data.message) {
-            errorMessage = payload.data.message;
-          }
-        } catch (_jsonError) {}
-      } else {
-        try {
-          const text = await response.text();
-          if (text) {
-            errorMessage = text;
-          }
-        } catch (_textError) {}
-      }
-      throw new Error(errorMessage);
-    }
-
-    const answerSdp = await response.text();
-    await pc.setRemoteDescription({
-      type: 'answer',
-      sdp: answerSdp
-    });
-
-    realtimePeerConnection = pc;
-    realtimeDataChannel = dc;
-    realtimeConnecting = false;
-
-    if (voiceButton) {
-      voiceButton.disabled = false;
-      updateVoiceButtonTitle(bkiaiChatConfig.realtimeVoiceStopLabel || 'Stop live voice conversation');
-    }
-  } catch (error) {
-    const message = (error && error.message) ? error.message : (bkiaiChatConfig.realtimeVoiceErrorLabel || 'The live voice session could not be started right now. Please try again.');
-    addMessage(message, 'bot');
-    stopRealtimeVoiceConversation();
-  }
-};
-
 
     let fullscreenPlaceholder = null;
     let fullscreenOriginalParent = null;
@@ -935,7 +697,7 @@ const startRealtimeVoiceConversation = async function () {
         message.appendChild(createPdfDownloadLink(opts.pdfUrl, opts.pdfFilename));
       }
 
-      if (type !== 'user' && bkiaiChatConfig.showSources !== false && Array.isArray(opts.sources) && opts.sources.length) {
+      if (type !== 'user' && showSources && Array.isArray(opts.sources) && opts.sources.length) {
         const sources = document.createElement('div');
         sources.className = 'bkiai-chat-sources';
         const label = document.createElement('span');
@@ -1210,7 +972,7 @@ const finalizeStreamingMessage = function (streamState, options) {
     streamState.root.appendChild(createPdfDownloadLink(opts.pdfUrl, opts.pdfFilename));
   }
 
-  if (bkiaiChatConfig.showSources !== false && Array.isArray(opts.sources) && opts.sources.length) {
+  if (showSources && Array.isArray(opts.sources) && opts.sources.length) {
     const sources = document.createElement('div');
     sources.className = 'bkiai-chat-sources';
     const label = document.createElement('span');
@@ -1368,63 +1130,120 @@ const consumeNdjsonStream = async function (response, onEvent) {
     });
 
     if (voiceEnabled && voiceButton) {
-      if (voiceRealtimeEnabled) {
-        if (!supportsRealtimeVoice()) {
-          voiceButton.disabled = true;
-          updateVoiceButtonTitle(bkiaiChatConfig.realtimeVoiceNotSupported || 'Realtime voice is not supported in this browser.');
-        } else {
-          updateVoiceButtonTitle(bkiaiChatConfig.realtimeVoiceStartLabel || 'Start live voice conversation');
-          voiceButton.addEventListener('click', function () {
-            if (realtimeConnecting) {
-              return;
-            }
-            if (voiceConversationActive || realtimePeerConnection) {
-              stopVoiceConversation();
-            } else {
-              startVoiceConversation();
-            }
-          });
-        }
+      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+
+      if (!SpeechRecognition) {
+        voiceButton.disabled = true;
+        updateVoiceButtonTitle(bkiaiChatConfig.voiceNotSupported || 'Voice input is not supported in this browser.');
       } else {
-        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        let simpleVoiceListening = false;
 
-        if (!SpeechRecognition) {
-          voiceButton.disabled = true;
-          updateVoiceButtonTitle(bkiaiChatConfig.voiceNotSupported || 'Voice input is not supported in this browser.');
-        } else {
-          voiceRecognition = new SpeechRecognition();
-          voiceRecognition.lang = getUiLanguage();
-          voiceRecognition.interimResults = false;
-          voiceRecognition.maxAlternatives = 1;
-          voiceRecognition.continuous = false;
+        const resetSimpleVoiceUi = function () {
+          simpleVoiceListening = false;
+          voiceButton.classList.remove('is-listening');
+          voiceButton.classList.remove('is-voice-session');
+          updateVoiceButtonTitle('Start voice input');
+        };
 
-          voiceRecognition.addEventListener('start', function () {
+        const releaseSimpleVoiceRecognition = function (stopMode) {
+          if (!voiceRecognition) {
+            return;
+          }
+
+          const recognition = voiceRecognition;
+          voiceRecognition = null;
+
+          recognition.onstart = null;
+          recognition.onend = null;
+          recognition.onerror = null;
+          recognition.onresult = null;
+
+          try {
+            if (stopMode === 'abort' && typeof recognition.abort === 'function') {
+              recognition.abort();
+            } else if (typeof recognition.stop === 'function') {
+              recognition.stop();
+            }
+          } catch (_simpleVoiceReleaseError) {}
+        };
+
+        const createSimpleVoiceRecognition = function () {
+          const recognition = new SpeechRecognition();
+          recognition.lang = getUiLanguage();
+          recognition.interimResults = false;
+          recognition.maxAlternatives = 1;
+          recognition.continuous = false;
+
+          recognition.onstart = function () {
+            simpleVoiceListening = true;
             voiceButton.classList.add('is-listening');
+            voiceButton.classList.add('is-voice-session');
+            playVoiceReadyTone();
             updateVoiceButtonTitle(bkiaiChatConfig.voiceListeningLabel || 'Listening…');
-          });
+          };
 
-          voiceRecognition.addEventListener('end', function () {
-            voiceButton.classList.remove('is-listening');
-            updateVoiceButtonTitle('Start voice input');
-          });
+          recognition.onend = function () {
+            resetSimpleVoiceUi();
+            if (voiceRecognition === recognition) {
+              voiceRecognition = null;
+            }
+          };
 
-          voiceRecognition.addEventListener('result', function (event) {
+          recognition.onerror = function (event) {
+            resetSimpleVoiceUi();
+            if (voiceRecognition === recognition) {
+              voiceRecognition = null;
+            }
+
+            if (event && event.error === 'not-allowed') {
+              addMessage('Der Mikrofonzugriff wurde blockiert. Bitte erlaube den Mikrofonzugriff im Browser und versuche es erneut.', 'bot');
+            } else if (event && event.error === 'no-speech') {
+              addMessage('Es wurde keine Sprache erkannt. Bitte sprich deutlicher oder versuche es erneut.', 'bot');
+            } else if (event && (event.error === 'network' || event.error === 'service-not-allowed')) {
+              addMessage('Die Browser-Spracherkennung konnte keine Verbindung aufbauen. Bitte versuche es erneut oder teste alternativ Chrome.', 'bot');
+            } else {
+              addMessage('Die Spracheingabe konnte gerade nicht gestartet werden. Bitte versuche es erneut.', 'bot');
+            }
+          };
+
+          recognition.onresult = function (event) {
             if (!event.results || !event.results[0] || !event.results[0][0]) {
               return;
             }
-            const transcript = event.results[0][0].transcript || '';
-            input.value = input.value ? (input.value + ' ' + transcript).trim() : transcript.trim();
+
+            const transcript = (event.results[0][0].transcript || '').trim();
+            if (!transcript) {
+              return;
+            }
+
+            input.value = transcript;
             input.focus();
-          });
+            submitRecognizedVoiceMessage(transcript);
+          };
 
-          voiceButton.addEventListener('click', function () {
-            try {
-              voiceRecognition.start();
-            } catch (_simpleVoiceError) {}
-          });
+          return recognition;
+        };
 
-          updateVoiceButtonTitle('Start voice input');
-        }
+        voiceButton.addEventListener('click', function () {
+          if (simpleVoiceListening) {
+            resetSimpleVoiceUi();
+            releaseSimpleVoiceRecognition('stop');
+            return;
+          }
+
+          releaseSimpleVoiceRecognition('abort');
+          voiceRecognition = createSimpleVoiceRecognition();
+
+          try {
+            voiceRecognition.start();
+          } catch (_simpleVoiceError) {
+            resetSimpleVoiceUi();
+            voiceRecognition = null;
+            addMessage('Die Spracheingabe konnte gerade nicht gestartet werden. Bitte versuche es erneut.', 'bot');
+          }
+        });
+
+        updateVoiceButtonTitle('Start voice input');
       }
     }
 
@@ -1439,12 +1258,6 @@ form.addEventListener('submit', async function (event) {
 
   voiceBotBusy = true;
   clearVoiceRecognitionRestart();
-  if (voiceRealtimeEnabled && voiceConversationActive && voiceRecognition) {
-    try {
-      voiceRecognition.stop();
-    } catch (_voiceStopBeforeSendError) {}
-    updateVoiceButtonTitle(bkiaiChatConfig.voiceProcessingLabel || 'Processing…');
-  }
 
   addMessage(userMessage, 'user', { disableCopy: true });
   pushHistory('user', userMessage);
@@ -1525,10 +1338,6 @@ form.addEventListener('submit', async function (event) {
       addMessage(bkiaiChatConfig.errorMessage, 'bot');
       spokenReplyText = bkiaiChatConfig.errorMessage || '';
     }
-
-    if (voiceRealtimeEnabled && voiceConversationActive && spokenReplyText) {
-      await speakBotReply(spokenReplyText);
-    }
   } catch (_error) {
     streamState.root.remove();
     addMessage(bkiaiChatConfig.errorMessage, 'bot');
@@ -1540,30 +1349,14 @@ form.addEventListener('submit', async function (event) {
     }
     if (voiceButton) {
       voiceButton.disabled = false;
-      if (!voiceRealtimeEnabled || !voiceConversationActive) {
-        updateVoiceButtonTitle(
-          voiceRealtimeEnabled
-            ? (bkiaiChatConfig.voiceConversationStartLabel || 'Start live voice conversation')
-            : 'Start voice input'
-        );
-      }
+      updateVoiceButtonTitle('Start voice input');
     }
     input.focus();
     smoothScrollToBottom();
-    if (voiceRealtimeEnabled && voiceConversationActive) {
-      restartVoiceRecognitionIfNeeded();
-    }
   }
 });
 
 smoothScrollToBottom();
-
-
-    window.addEventListener('beforeunload', function () {
-      if (voiceRealtimeEnabled) {
-        stopRealtimeVoiceConversation();
-      }
-    });
 
   });
 });
